@@ -49,7 +49,6 @@ C언어 기반 선형대수 솔버 프로젝트**
   3. 사용 가능 함수 목록
      
      (1)생성 및 파괴
-     
         ```Matrix* mat_create(int rows, int cols); // 0으로 초기화된 행렬 생성
      
         Vector* vec_create(int size);           // 0으로 초기화된 벡터 생성
@@ -62,33 +61,27 @@ C언어 기반 선형대수 솔버 프로젝트**
      (2) 행렬 기본 연산 (Matrix Operations)
      
         차원(Dimension)이 맞지 않으면 에러 메시지를 출력하고 NULL을 반환합니다.
-     
-        Matrix* mat_add(const Matrix* a, const Matrix* b);      // A + B
+       ``` Matrix* mat_add(const Matrix* a, const Matrix* b);      // A + B
      
         Matrix* mat_sub(const Matrix* a, const Matrix* b);      // A - B
      
         Matrix* mat_multiply(const Matrix* a, const Matrix* b); // A * B
      
         Matrix* mat_transpose(const Matrix* m);                 // 전치 행렬 (A^T)
-     
+     ```
+       
      (3)벡터 및 혼합 연산 (Vector & Mixed Operations)
-
-     
-        Vector* mat_vec_multiply(const Matrix* m, const Vector* v);    // 행렬-벡터 곱셈 (Ax)
+        ```Vector* mat_vec_multiply(const Matrix* m, const Vector* v);    // 행렬-벡터 곱셈 (Ax)
      
         double vec_dot_product(const Vector* v1, const Vector* v2);    // 내적 (Dot Product)
      
         Matrix* vec_outer_product(const Vector* v1, const Vector* v2); // 외적 (Outer Product - Broyden용)
      
         double vec_norm(const Vector* v);                              // 벡터의 L2 노름 (크기, 수렴 판정용)
-     
-
-     
-     
+     ```
+        
      (4) 유틸리티 함수
-
-     
-        Matrix* mat_identity(int size);                         // 단위 행렬(I) 생성
+        ```Matrix* mat_identity(int size);                         // 단위 행렬(I) 생성
      
         Matrix* mat_copy(const Matrix* m);                      // 원본 훼손 방지용 깊은 복사(Deep Copy)
      
@@ -97,6 +90,6 @@ C언어 기반 선형대수 솔버 프로젝트**
         void mat_print(const Matrix* m);                        // 디버깅용 행렬 콘솔 출력
      
         void vec_print(const Vector* v);                        // 디버깅용 벡터 콘솔 출력
-     
+     ```
 
 
