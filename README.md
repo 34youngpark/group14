@@ -49,7 +49,6 @@ C언어 기반 선형대수 솔버 프로젝트**
   3. 사용 가능 함수 목록
      
      (1)생성 및 파괴
-
      
         Matrix* mat_create(int rows, int cols); // 0으로 초기화된 행렬 생성
      
@@ -59,12 +58,8 @@ C언어 기반 선형대수 솔버 프로젝트**
      
         void vec_free(Vector* v);               // 벡터 메모리 해제
      
-
-
      (2) 행렬 기본 연산 (Matrix Operations)
         차원(Dimension)이 맞지 않으면 에러 메시지를 출력하고 NULL을 반환합니다.
-
-     
         Matrix* mat_add(const Matrix* a, const Matrix* b);      // A + B
      
         Matrix* mat_sub(const Matrix* a, const Matrix* b);      // A - B
@@ -72,9 +67,6 @@ C언어 기반 선형대수 솔버 프로젝트**
         Matrix* mat_multiply(const Matrix* a, const Matrix* b); // A * B
      
         Matrix* mat_transpose(const Matrix* m);                 // 전치 행렬 (A^T)
-     
-
-     
      
      (3)벡터 및 혼합 연산 (Vector & Mixed Operations)
 
