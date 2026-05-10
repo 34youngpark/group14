@@ -56,7 +56,8 @@ C언어 기반 선형대수 솔버 프로젝트**
      
         void mat_free(Matrix* m);               // 행렬 메모리 해제
      
-        void vec_free(Vector* v);               // 벡터 메모리 해제```
+        void vec_free(Vector* v);               // 벡터 메모리 해제
+        ```
      
      (2) 행렬 기본 연산 (Matrix Operations)
      
