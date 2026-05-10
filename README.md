@@ -6,9 +6,9 @@ C언어 기반 선형대수 솔버 프로젝트**
 
 규칙
   각자의 코드(linear.c, nonlinear.c 등) 간에 어떠한 함수 호출이나 의존성도 없어야 합니다. 오직 본인에게 할당된 알고리즘 로직에만 집중합니다.
-  **공용 파일 수정 금지: matrix.c 및 matrix.h 파일은 절대 임의로 건드리지 않습니다.**
+  **공용 파일 수정 금지: matrix.c 및 matrix.h 파일은 절대 건드리지 않습니다.**
 
-팀원 및 담당 주제
+**팀원 및 담당 주제**
 
 최지훈: LU Decomposition with Partial Pivoting 
 
@@ -23,7 +23,7 @@ C언어 기반 선형대수 솔버 프로젝트**
 박세영: QR Algorithm with Shifts 
 
 
-matrix.c API 사용설명서
+**matrix.c API 사용설명서**
 자신의 .c 파일 최상단에 #include "matrix.h"를 선언한 뒤, 아래의 함수들을 사용할 수 있습니다.
 
 **추가로 필요한 함수는 다른 함수와 충돌하지 않도록 matrix.h와 겹치지 않는 이름으로, static 함수로 만들어 사용합니다.**
