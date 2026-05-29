@@ -1,0 +1,271 @@
+/*
+ * qr.c
+ * QR Algorithm with Wilkinson Shifts
+ *
+ * 담당: 박세영 (조장)
+ *
+ * [알고리즘 개요]
+ * 1. Householder 반사를 이용해 입력 행렬을 상 헤센버그(upper Hessenberg) 형태로 축소
+ * 2. QR iteration with Wilkinson shift + Givens rotation으로 수렴
+ * 3. 하단 서브대각 원소가 충분히 작아지면 deflation(차수 축소)
+ * 4. 실수 eigenvalue를 Vector로 반환
+ *
+ * [사용법]
+ *   #include "matrix.h"
+ *   Vector* eigenvalues = qr_algorithm(A, 1000, 1e-10);
+ *   // 사용 후 반드시 vec_free(eigenvalues);
+ *
+ * [주의]
+ * - 실수 대칭(symmetric) 행렬에 대해 정확히 동작합니다.
+ * - 비대칭 행렬은 complex eigenvalue가 존재할 수 있어 이 구현에서는 지원하지 않습니다.
+ */
+
+#include "matrix.h"
+
+/* ============================================================
+ * static 유틸리티 함수들 (외부에 노출되지 않음)
+ * ============================================================ */
+
+/*
+ * Givens rotation 파라미터 계산
+ * (a, b) 벡터를 회전시켜 b 성분을 0으로 만드는 (c, s)를 반환
+ */
+static void givens_params(double a, double b, double *c, double *s) {
+    if (b == 0.0) {
+        *c = 1.0;
+        *s = 0.0;
+    } else {
+        double r = sqrt(a * a + b * b);
+        *c = a / r;
+        *s = -b / r;
+    }
+}
+
+/*
+ * 행렬 H에 대해 왼쪽에서 Givens 회전 적용: H = G * H
+ * 행 i와 행 i+1에만 영향
+ */
+static void apply_givens_left(Matrix *H, int i, double c, double s, int col_start, int col_end) {
+    for (int j = col_start; j <= col_end; j++) {
+        double tmp   =  c * H->data[i][j] - s * H->data[i+1][j];
+        H->data[i+1][j] =  s * H->data[i][j] + c * H->data[i+1][j];
+        H->data[i][j]   = tmp;
+    }
+}
+
+/*
+ * 행렬 H에 대해 오른쪽에서 Givens 회전 적용: H = H * G^T
+ * 열 i와 열 i+1에만 영향
+ */
+static void apply_givens_right(Matrix *H, int i, double c, double s, int row_start, int row_end) {
+    for (int k = row_start; k <= row_end; k++) {
+        double tmp      =  c * H->data[k][i] - s * H->data[k][i+1];
+        H->data[k][i+1] =  s * H->data[k][i] + c * H->data[k][i+1];
+        H->data[k][i]   = tmp;
+    }
+}
+
+/*
+ * Householder 반사를 이용한 상 헤센버그(upper Hessenberg) 변환
+ * A를 제자리(in-place)로 수정
+ *
+ * 대칭 행렬의 경우 결과는 트리다이어고널(tridiagonal)이 됩니다.
+ */
+static void reduce_to_hessenberg(Matrix *A) {
+    int n = A->rows;
+
+    for (int k = 0; k < n - 2; k++) {
+        /* x = A[k+1 .. n-1, k] 열 벡터 */
+        int sub_size = n - k - 1;
+        Vector *x = vec_create(sub_size);
+        for (int i = 0; i < sub_size; i++) {
+            x->data[i] = A->data[k + 1 + i][k];
+        }
+
+        /* Householder 벡터 v 계산 */
+        double x_norm = vec_norm(x);
+        if (x_norm < 1e-15) {
+            vec_free(x);
+            continue;
+        }
+
+        Vector *v = vec_create(sub_size);
+        for (int i = 0; i < sub_size; i++) {
+            v->data[i] = x->data[i];
+        }
+        /* 부호 선택으로 수치 안정성 확보 */
+        v->data[0] += (x->data[0] >= 0.0 ? 1.0 : -1.0) * x_norm;
+
+        double v_norm = vec_norm(v);
+        if (v_norm < 1e-15) {
+            vec_free(x);
+            vec_free(v);
+            continue;
+        }
+        for (int i = 0; i < sub_size; i++) {
+            v->data[i] /= v_norm;
+        }
+
+        /*
+         * A = H * A * H^T  (H = I - 2*v*v^T)
+         * 왼쪽 적용: A[k+1:, k:] -= 2 * v * (v^T * A[k+1:, k:])
+         */
+        for (int j = k; j < n; j++) {
+            double dot = 0.0;
+            for (int i = 0; i < sub_size; i++) {
+                dot += v->data[i] * A->data[k + 1 + i][j];
+            }
+            for (int i = 0; i < sub_size; i++) {
+                A->data[k + 1 + i][j] -= 2.0 * v->data[i] * dot;
+            }
+        }
+
+        /*
+         * 오른쪽 적용: A[:, k+1:] -= 2 * (A[:, k+1:] * v) * v^T
+         */
+        for (int i = 0; i < n; i++) {
+            double dot = 0.0;
+            for (int j = 0; j < sub_size; j++) {
+                dot += A->data[i][k + 1 + j] * v->data[j];
+            }
+            for (int j = 0; j < sub_size; j++) {
+                A->data[i][k + 1 + j] -= 2.0 * dot * v->data[j];
+            }
+        }
+
+        vec_free(x);
+        vec_free(v);
+    }
+}
+
+/*
+ * Wilkinson shift 계산
+ * 수렴을 가속하기 위해 현재 활성 부분 행렬의 오른쪽 하단 2x2 블록의
+ * eigenvalue 중 H[m][m]에 가장 가까운 값을 shift로 선택
+ */
+static double wilkinson_shift(const Matrix *H, int m) {
+    double a = H->data[m-1][m-1];
+    double b = H->data[m-1][m];
+    double c = H->data[m][m-1];
+    double d = H->data[m][m];
+
+    double trace  = a + d;
+    double det    = a * d - b * c;
+    double disc   = (trace * trace / 4.0) - det;
+
+    double sqrt_disc;
+    if (disc < 0.0) {
+        /* 복소 eigenvalue 케이스 — Rayleigh quotient shift로 fallback */
+        return d;
+    }
+    sqrt_disc = sqrt(disc);
+
+    double lambda1 = trace / 2.0 + sqrt_disc;
+    double lambda2 = trace / 2.0 - sqrt_disc;
+
+    /* d에 더 가까운 eigenvalue 선택 */
+    if (fabs(lambda1 - d) <= fabs(lambda2 - d)) {
+        return lambda1;
+    } else {
+        return lambda2;
+    }
+}
+
+/* ============================================================
+ * 공개 인터페이스
+ * ============================================================ */
+
+/*
+ * qr_algorithm
+ *
+ * 매개변수:
+ *   A         : 정방 실수 행렬 (내부적으로 복사하므로 원본 훼손 없음)
+ *   max_iter  : 최대 반복 횟수 (권장: 1000 이상)
+ *   tol       : 수렴 판정 허용 오차 (권장: 1e-10)
+ *
+ * 반환:
+ *   eigenvalue들을 담은 Vector (크기 n)
+ *   메모리 해제는 호출자가 vec_free()로 수행
+ *   오류 시 NULL 반환
+ */
+Vector* qr_algorithm(const Matrix *A, int max_iter, double tol) {
+    if (A == NULL || A->rows != A->cols) {
+        fprintf(stderr, "[qr_algorithm] 오류: NULL이거나 정방 행렬이 아닙니다.\n");
+        return NULL;
+    }
+
+    int n = A->rows;
+    Vector *eigenvalues = vec_create(n);
+
+    /* 작업용 복사본 생성 */
+    Matrix *H = mat_copy(A);
+
+    /* Step 1: 상 헤센버그 형태로 축소 */
+    reduce_to_hessenberg(H);
+
+    /*
+     * Step 2: QR iteration with Wilkinson shift + deflation
+     *
+     * 활성 부분 행렬의 크기를 m으로 관리 (0-based, H[0..m][0..m])
+     * 서브대각 원소 H[m][m-1]이 tol 이하로 수렴하면 eigenvalue 확정 후 deflation
+     */
+    int m = n - 1;
+
+    for (int iter = 0; iter < max_iter && m > 0; iter++) {
+        /* 수렴 체크: 서브대각 원소가 작으면 deflation */
+        while (m > 0 &&
+               fabs(H->data[m][m-1]) < tol * (fabs(H->data[m-1][m-1]) + fabs(H->data[m][m]))) {
+            H->data[m][m-1] = 0.0;  /* 수치적으로 0으로 정리 */
+            eigenvalues->data[m] = H->data[m][m];
+            m--;
+        }
+        if (m == 0) {
+            eigenvalues->data[0] = H->data[0][0];
+            break;
+        }
+
+        /* Wilkinson shift 계산 */
+        double shift = wilkinson_shift(H, m);
+
+        /* Shifted QR step via Givens rotations (implicit Q)
+         *
+         * H <- Q^T * (H - shift*I) * Q + shift*I
+         * Givens rotation으로 벌지(bulge)를 아래로 chase
+         */
+
+        /* 첫 번째 Givens rotation: (H - shift*I)의 첫 열 [0,1] 성분을 이용 */
+        double c, s;
+        givens_params(H->data[0][0] - shift, H->data[1][0], &c, &s);
+
+        /* 왼쪽 적용 */
+        apply_givens_left(H, 0, c, s, 0, m);
+        /* 오른쪽 적용: bulge가 (2,0)에 생성되므로 row_end = min(2, m) */
+        apply_givens_right(H, 0, c, s, 0, (2 <= m ? 2 : m));
+
+        /* 벌지 쫓아 내려가기 */
+        for (int k = 1; k < m; k++) {
+            givens_params(H->data[k][k-1], H->data[k+1][k-1], &c, &s);
+            H->data[k][k-1]   = c * H->data[k][k-1] - s * H->data[k+1][k-1];
+            H->data[k+1][k-1] = 0.0;  /* 수치 노이즈 제거 */
+
+            int col_end = (k + 2 <= m) ? k + 2 : m;
+            apply_givens_left(H, k, c, s, k, m);
+            apply_givens_right(H, k, c, s, 0, col_end);
+        }
+    }
+
+    /* 남은 원소 처리 (max_iter 도달 또는 1x1 블록) */
+    if (m == 0) {
+        eigenvalues->data[0] = H->data[0][0];
+    } else if (m > 0) {
+        /* 수렴하지 못한 경우 현재 대각 원소를 근사값으로 저장 */
+        fprintf(stderr, "[qr_algorithm] 경고: %d번 반복 후 완전 수렴하지 않았습니다."
+                        " 대각 원소를 근사 eigenvalue로 반환합니다.\n", max_iter);
+        for (int i = 0; i <= m; i++) {
+            eigenvalues->data[i] = H->data[i][i];
+        }
+    }
+
+    mat_free(H);
+    return eigenvalues;
+}
