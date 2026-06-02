@@ -57,7 +57,7 @@ int main() {
 
     // 6. 결과 출력
     if (eigenvalues != NULL) {
-        printf("\n🔥 계산 완료! 고유값(Eigenvalues) 결과:\n");
+        printf("\n 계산 완료! 고유값(Eigenvalues) 결과:\n");
         for (int i = 0; i < n; i++) {
             printf("    λ[%d] = %11.8f\n", i, eigenvalues->data[i]);
         }
