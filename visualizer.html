@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Power Iteration Visualizer — Group 14</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1a2744 100%);
+    padding: 20px 32px;
+    border-bottom: 1px solid #2d4a7a;
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; color: #93c5fd; }
+  header p  { font-size: 0.9rem; color: #94a3b8; margin-top: 4px; }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 520px 1fr;
+    gap: 20px;
+    padding: 20px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .card h2 { font-size: 0.85rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+
+  canvas {
+    display: block;
+    border-radius: 8px;
+    background: #0d1117;
+    border: 1px solid #2d3748;
+  }
+
+  /* Matrix Input */
+  .matrix-wrap {
+    position: relative;
+    padding: 10px 28px;
+    margin-bottom: 14px;
+  }
+  .matrix-wrap::before,
+  .matrix-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 10px;
+    border: 2px solid #475569;
+    border-radius: 3px;
+  }
+  .matrix-wrap::before { left: 8px;  border-right: none; }
+  .matrix-wrap::after  { right: 8px; border-left:  none; }
+
+  .matrix-cells {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .cell-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .cell-label {
+    font-size: 0.65rem;
+    color: #475569;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+  }
+  .cell-group input {
+    background: #0d1117;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    color: #e2e8f0;
+    padding: 8px 4px;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .cell-group input:focus { outline: none; border-color: #3b82f6; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+  button {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-step   { background: #1d4ed8; color: white; }
+  .btn-run    { background: #065f46; color: white; }
+  .btn-reset  { background: #374151; color: #d1d5db; }
+  .btn-invert { background: #5b21b6; color: white; font-size: 0.75rem; }
+  button:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Sigma row */
+  .sigma-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .sigma-row label { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
+  .sigma-row input {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    color: #e2e8f0;
+    padding: 5px 10px;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  .sigma-row input:focus { outline: none; border-color: #8b5cf6; }
+
+  /* Stats */
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2d3748; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 0.8rem; color: #64748b; }
+  .stat-value { font-size: 1rem; font-weight: 700; font-family: 'Courier New', monospace; color: #e2e8f0; }
+  .stat-value.converged { color: #34d399; }
+  .stat-value.running   { color: #fbbf24; }
+
+  /* Log */
+  .log-box {
+    background: #0d1117;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    height: 180px;
+    overflow-y: auto;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+  }
+  .log-entry { padding: 2px 0; color: #94a3b8; }
+  .log-entry span.iter { color: #60a5fa; }
+  .log-entry span.lam  { color: #fbbf24; }
+  .log-entry span.ok   { color: #34d399; }
+  .log-entry span.inv  { color: #c084fc; }
+
+  /* Algorithm cards */
+  .algo-section {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+  .algo-card {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .algo-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+  .algo-card.power   h3 { color: #60a5fa; }
+  .algo-card.inverse h3 { color: #c084fc; }
+  .algo-card.gauss   h3 { color: #fb923c; }
+
+  /* Tabs */
+  .card-tabs { display: flex; gap: 4px; margin-bottom: 14px; margin-top: 8px; }
+  .tab {
+    flex: none;
+    padding: 4px 14px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #374151;
+    background: transparent;
+    color: #64748b;
+    transition: all 0.15s;
+  }
+  .tab.active { color: #e2e8f0; }
+  .algo-card.power   .tab.active { background: #1e3a5f; border-color: #1e3a5f; }
+  .algo-card.inverse .tab.active { background: #2e1065; border-color: #2e1065; }
+  .algo-card.gauss   .tab.active { background: #431407; border-color: #431407; }
+  .tab-panel { display: none; flex: 1; }
+  .tab-panel.active { display: block; }
+
+  .steps { counter-reset: step; }
+  .step {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    counter-increment: step;
+  }
+  .step-num {
+    min-width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .algo-card.power   .step-num { background: #1e3a5f; color: #93c5fd; }
+  .algo-card.inverse .step-num { background: #2e1065; color: #c084fc; }
+  .algo-card.gauss   .step-num { background: #431407; color: #fdba74; }
+  .step-body p { font-size: 0.82rem; color: #cbd5e1; line-height: 1.5; }
+  .step-body code { background: #0d1117; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.78rem; color: #f0abfc; }
+
+  .formula-box {
+    background: #0d1117;
+    border-left: 3px solid #3b82f6;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 8px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: #fbbf24;
+  }
+  .algo-card.inverse .formula-box { border-left-color: #8b5cf6; }
+  .algo-card.gauss   .formula-box { border-left-color: #f97316; color: #fdba74; }
+
+  /* Code blocks */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin-bottom: 10px;
+  }
+  .code-line { display: flex; gap: 10px; }
+  .ln { color: #374151; min-width: 24px; text-align: right; user-select: none; flex-shrink: 0; }
+  .kw  { color: #c084fc; }  /* keyword: for, if, int, double */
+  .fn  { color: #60a5fa; }  /* function call */
+  .str { color: #34d399; }  /* string / comment */
+  .var { color: #fbbf24; }  /* variable */
+  .num { color: #f87171; }  /* number / literal */
+  .ann {
+    display: block;
+    background: #1a2032;
+    border-left: 2px solid #3b82f6;
+    color: #64748b;
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 0 4px 4px 0;
+    margin: 2px 0 6px 34px;
+    line-height: 1.4;
+  }
+  .algo-card.inverse .ann { border-left-color: #8b5cf6; }
+  .algo-card.gauss   .ann { border-left-color: #f97316; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748b; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  /* Convergence chart */
+  .chart-canvas {
+    width: 100%;
+    height: 120px;
+    background: #0d1117;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  .mode-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .mode-badge.power   { background: #1e3a5f; color: #93c5fd; }
+  .mode-badge.inverse { background: #2e1065; color: #c084fc; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Power &amp; Inverse Power Iteration — Interactive Visualizer</h1>
+  <p>Group 14 · 안의빈 (2024199084) · eigen.c visualization · 2D matrix only</p>
+</header>
+
+<div class="main-grid">
+
+  <!-- LEFT: Canvas -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="card" style="padding:0; overflow:hidden;">
+      <canvas id="canvas" width="488" height="488"></canvas>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> initial q</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div> current q (normalized)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div> Aq (before normalize)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> true eigenvector</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Controls + Stats -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+
+    <!-- Matrix Input -->
+    <div class="card">
+      <h2>Matrix A (2×2)</h2>
+      <div class="matrix-wrap">
+        <div class="matrix-cells">
+          <div class="cell-group">
+            <span class="cell-label">a[0][0]</span>
+            <input type="number" id="a00" value="4" step="0.1">
+          </div>
+          <div class="cell-group">
+            <span class="cell-label">a[0][1]</span>
+            <input type="number" id="a01" value="1" step="0.1">
+          </div>
+          <div class="cell-group">
+            <span class="cell-label">a[1][0]</span>
+            <input type="number" id="a10" value="2" step="0.1">
+          </div>
+          <div class="cell-group">
+            <span class="cell-label">a[1][1]</span>
+            <input type="number" id="a11" value="3" step="0.1">
+          </div>
+        </div>
+      </div>
+      <div class="sigma-row">
+        <label>σ (shift for Inverse):</label>
+        <input type="number" id="sigma" value="0" step="0.5">
+      </div>
+      <div class="btn-row">
+        <button class="btn-step"   id="btnStep"  onclick="step()">Step →</button>
+        <button class="btn-run"    id="btnRun"   onclick="toggleRun()">▶ Run</button>
+        <button class="btn-reset"  onclick="reset()">Reset</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-invert" onclick="switchMode('power')">Power Iteration</button>
+        <button class="btn-invert" onclick="switchMode('inverse')">Inverse Power</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <h2>Current State <span class="mode-badge" id="modeBadge">power</span></h2>
+      <div class="stat-row">
+        <span class="stat-label">Iteration</span>
+        <span class="stat-value" id="statIter">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">λ estimate (Rayleigh)</span>
+        <span class="stat-value" id="statLambda">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">|Δλ| change</span>
+        <span class="stat-value" id="statDelta">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">‖q‖ (always 1)</span>
+        <span class="stat-value" id="statNorm">1.0000</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Status</span>
+        <span class="stat-value" id="statStatus">Ready</span>
+      </div>
+
+      <!-- Convergence mini-chart -->
+      <h2 style="margin-top:12px;">λ Convergence</h2>
+      <canvas class="chart-canvas" id="chartCanvas" width="300" height="120"></canvas>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <h2>Step Log</h2>
+      <div class="log-box" id="logBox"></div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM: Algorithm explanation cards -->
+  <div class="algo-section">
+
+    <!-- ── Power Iteration ── -->
+    <div class="algo-card power">
+      <h3>Power Iteration</h3>
+      <p style="font-size:0.8rem; color:#64748b; margin-bottom:6px;">
+        Finds the <strong style="color:#60a5fa">dominant eigenvalue</strong> (largest |λ|) and its eigenvector.
+      </p>
+      <div class="card-tabs">
+        <button class="tab active" onclick="switchTab(this,'pi-math')">Math</button>
+        <button class="tab"        onclick="switchTab(this,'pi-code')">Code</button>
+      </div>
+
+      <div id="pi-math" class="tab-panel active">
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body">
+            <p>Start with an initial vector <code>q = [1, 0]</code> (any non-zero vector works).</p>
+          </div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body">
+            <p>Multiply: <code>z = A * q</code>. The matrix "stretches" q toward the dominant eigenvector.</p>
+            <div class="formula-box">z = A · q</div>
+          </div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body">
+            <p>Estimate eigenvalue with the <strong>Rayleigh Quotient</strong>: how much the vector grew in its own direction.</p>
+            <div class="formula-box">λ = qᵀ · z  (= qᵀAq)</div>
+          </div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body">
+            <p>Normalize: <code>q = z / ‖z‖</code> so the vector stays unit length. This prevents overflow.</p>
+            <div class="formula-box">q ← z / ‖z‖</div>
+          </div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-body">
+            <p>Repeat from step 2. Stop when <code>|λ_new − λ_old| &lt; tol</code> (converged).</p>
+          </div></div>
+        </div>
+        <p style="font-size:0.78rem; color:#475569; margin-top:8px;">
+          <strong>Why it works:</strong> Any vector can be written as a sum of eigenvectors. Each multiplication by A scales each component by its eigenvalue. After many steps the biggest-eigenvalue component dominates — the rest shrink away relatively.
+        </p>
+      </div>
+
+      <div id="pi-code" class="tab-panel">
+        <p style="font-size:0.75rem; color:#475569; margin-bottom:8px;"><code style="color:#93c5fd;">eigen.c</code> — <code style="color:#93c5fd;">power_iteration()</code></p>
+
+        <div class="code-block">
+<div class="code-line"><span class="ln">109</span><span><span class="kw">Vector</span>* <span class="var">q</span> = <span class="fn">vec_create</span>(<span class="var">n</span>);</span></div>
+<div class="code-line"><span class="ln">111</span><span><span class="var">q</span>-&gt;<span class="var">data</span>[<span class="num">0</span>] = <span class="num">1.0</span>;</span></div>
+<span class="ann">▲ Initial guess vector q = [1, 0, …, 0]. Any nonzero vector works; the algorithm will rotate it toward the true eigenvector over time.</span>
+
+<div class="code-line"><span class="ln">116</span><span><span class="kw">for</span> (<span class="var">iter</span> = <span class="num">0</span>; <span class="var">iter</span> &lt; <span class="var">max_iter</span>; <span class="var">iter</span>++) {</span></div>
+<span class="ann">▲ Main loop — runs until convergence or max_iter (default 10 000) is hit.</span>
+
+<div class="code-line"><span class="ln">118</span><span>  <span class="kw">Vector</span>* <span class="var">z</span> = <span class="fn">mat_vec_multiply</span>(<span class="var">A</span>, <span class="var">q</span>);</span></div>
+<span class="ann">▲ z = A·q. This is one "power step". After k steps we effectively have Aᵏ·q₀, which aligns with the dominant eigenvector.</span>
+
+<div class="code-line"><span class="ln">122</span><span>  <span class="kw">double</span> <span class="var">lambda_new</span> = <span class="fn">vec_dot_product</span>(<span class="var">q</span>, <span class="var">z</span>);</span></div>
+<span class="ann">▲ Rayleigh Quotient: λ = qᵀ·z = qᵀ·Aq. Because q is unit-length (‖q‖=1), this equals qᵀAq / qᵀq — the best scalar estimate of the eigenvalue for the current direction.</span>
+
+<div class="code-line"><span class="ln">125</span><span>  <span class="kw">double</span> <span class="var">norm</span> = <span class="fn">vec_norm</span>(<span class="var">z</span>);</span></div>
+<div class="code-line"><span class="ln">132</span><span>  <span class="kw">for</span> (<span class="kw">int</span> <span class="var">i</span>=<span class="num">0</span>; <span class="var">i</span>&lt;<span class="var">n</span>; <span class="var">i</span>++) <span class="var">z</span>-&gt;<span class="var">data</span>[<span class="var">i</span>] /= <span class="var">norm</span>;</span></div>
+<span class="ann">▲ Normalize: q ← z / ‖z‖. Keeps q as a unit vector so numbers don't blow up or shrink to zero over thousands of iterations.</span>
+
+<div class="code-line"><span class="ln">139</span><span>  <span class="kw">if</span> (<span class="fn">fabs</span>(<span class="var">lambda_new</span> - <span class="var">lambda</span>) &lt; <span class="var">tol</span>) {</span></div>
+<div class="code-line"><span class="ln">141</span><span>    <span class="var">iter</span>++; <span class="kw">break</span>;</span></div>
+<span class="ann">▲ Convergence check: if the eigenvalue estimate barely changed since last step, we've found the answer. tol defaults to 1e-10.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Inverse Power Iteration ── -->
+    <div class="algo-card inverse">
+      <h3>Inverse Power Iteration</h3>
+      <p style="font-size:0.8rem; color:#64748b; margin-bottom:6px;">
+        Finds the eigenvalue <strong style="color:#c084fc">closest to σ</strong>. If σ=0, finds the smallest |λ|.
+      </p>
+      <div class="card-tabs">
+        <button class="tab active" onclick="switchTab(this,'ip-math')">Math</button>
+        <button class="tab"        onclick="switchTab(this,'ip-code')">Code</button>
+      </div>
+
+      <div id="ip-math" class="tab-panel active">
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body">
+            <p>Build the shifted matrix: <code>B = A − σ·I</code>. Subtracting σ from the diagonal shifts all eigenvalues by −σ.</p>
+            <div class="formula-box" style="border-left-color:#8b5cf6">B = A − σI</div>
+          </div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body">
+            <p>Instead of multiplying by A, we <strong>solve a linear system</strong>: <code>B·z = q</code>. This is like multiplying by B⁻¹.</p>
+            <div class="formula-box" style="border-left-color:#8b5cf6">Solve: (A − σI)·z = q</div>
+          </div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body">
+            <p>Rayleigh Quotient: <code>μ = qᵀ·z</code>. This estimates 1/(λ−σ) of the closest eigenvalue.</p>
+            <div class="formula-box" style="border-left-color:#8b5cf6">μ = qᵀ · z</div>
+          </div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body">
+            <p>Recover the actual eigenvalue of A: since μ ≈ 1/(λ−σ), we get λ = σ + 1/μ.</p>
+            <div class="formula-box" style="border-left-color:#8b5cf6">λ = σ + 1/μ</div>
+          </div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-body">
+            <p>Normalize <code>q = z / ‖z‖</code> and repeat until convergence.</p>
+          </div></div>
+        </div>
+        <p style="font-size:0.78rem; color:#475569; margin-top:8px;">
+          <strong>Why it works:</strong> If λ is the eigenvalue of A closest to σ, then 1/(λ−σ) is the dominant eigenvalue of B⁻¹. So we're doing Power Iteration on B⁻¹ — without computing the inverse directly (we solve instead).
+        </p>
+      </div>
+
+      <div id="ip-code" class="tab-panel">
+        <p style="font-size:0.75rem; color:#475569; margin-bottom:8px;"><code style="color:#c084fc;">eigen.c</code> — <code style="color:#c084fc;">inverse_power_iteration()</code></p>
+
+        <div class="code-block">
+<div class="code-line"><span class="ln">186</span><span><span class="kw">Matrix</span>* <span class="var">I</span> = <span class="fn">mat_identity</span>(<span class="var">n</span>);</span></div>
+<div class="code-line"><span class="ln">192</span><span>  <span class="var">B</span>-&gt;<span class="var">data</span>[<span class="var">i</span>][<span class="var">j</span>] = <span class="var">A</span>-&gt;<span class="var">data</span>[<span class="var">i</span>][<span class="var">j</span>] - <span class="var">sigma</span> * <span class="var">I</span>-&gt;<span class="var">data</span>[<span class="var">i</span>][<span class="var">j</span>];</span></div>
+<span class="ann">▲ Build B = A − σI. Subtracting σ from every diagonal entry shifts all eigenvalues: if A has eigenvalue λ, then B has eigenvalue (λ−σ). The eigenvalue of A closest to σ becomes the smallest eigenvalue of B.</span>
+
+<div class="code-line"><span class="ln">207</span><span>  <span class="kw">Vector</span>* <span class="var">z</span> = <span class="fn">solve_linear_system</span>(<span class="var">B</span>, <span class="var">q</span>);</span></div>
+<span class="ann">▲ Solve B·z = q, i.e. z = B⁻¹·q. We never form B⁻¹ explicitly — solving is cheaper and more numerically stable. This is the "inverse" in Inverse Power Iteration. See the third card for how the solver works.</span>
+
+<div class="code-line"><span class="ln">211</span><span>  <span class="kw">double</span> <span class="var">mu</span> = <span class="fn">vec_dot_product</span>(<span class="var">q</span>, <span class="var">z</span>);</span></div>
+<span class="ann">▲ Rayleigh Quotient on B⁻¹: μ = qᵀ·z. Since z ≈ B⁻¹·q, μ approximates the dominant eigenvalue of B⁻¹, which is 1/(λ_closest − σ).</span>
+
+<div class="code-line"><span class="ln">229</span><span>  <span class="kw">double</span> <span class="var">lambda_new</span> = <span class="var">sigma</span> + <span class="num">1.0</span> / <span class="var">mu</span>;</span></div>
+<span class="ann">▲ Undo the shift: since μ ≈ 1/(λ−σ), flipping gives λ−σ ≈ 1/μ, so λ ≈ σ + 1/μ. This recovers the actual eigenvalue of A.</span>
+
+<div class="code-line"><span class="ln">232</span><span>  <span class="kw">if</span> (<span class="fn">fabs</span>(<span class="var">lambda_new</span> - <span class="var">lambda</span>) &lt; <span class="var">tol</span>) <span class="kw">break</span>;</span></div>
+<span class="ann">▲ Same convergence check as Power Iteration. Inverse Power typically converges much faster because the ratio between the two smallest eigenvalues of B⁻¹ can be very large.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Gaussian Elimination Helper ── -->
+    <div class="algo-card gauss">
+      <h3>Gaussian Elimination Helper</h3>
+      <p style="font-size:0.8rem; color:#64748b; margin-bottom:6px;">
+        <code style="color:#fb923c;">solve_linear_system()</code> — used internally by Inverse Power Iteration to solve <strong style="color:#fb923c;">B·z = q</strong>.
+      </p>
+      <div class="card-tabs">
+        <button class="tab active" onclick="switchTab(this,'gs-math')">Math</button>
+        <button class="tab"        onclick="switchTab(this,'gs-code')">Code</button>
+      </div>
+
+      <div id="gs-math" class="tab-panel active">
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body">
+            <p>Build the <strong>augmented matrix</strong> <code>[B | q]</code> by attaching q as an extra column. All operations are done on this combined matrix.</p>
+            <div class="formula-box" style="border-left-color:#f97316; color:#fdba74;">[ b₀₀  b₀₁ | q₀ ]
+[ b₁₀  b₁₁ | q₁ ]</div>
+          </div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body">
+            <p><strong>Partial pivoting:</strong> before each column's elimination step, swap rows so the largest absolute value is on the diagonal. This avoids dividing by near-zero numbers.</p>
+          </div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body">
+            <p><strong>Forward elimination:</strong> for each row below the pivot, compute a factor = row[col] / pivot, then subtract (factor × pivot row) from it. This zeros out the column below the diagonal.</p>
+            <div class="formula-box" style="border-left-color:#f97316; color:#fdba74;">row[j] -= factor × pivot_row[j]</div>
+          </div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body">
+            <p><strong>Back substitution:</strong> the matrix is now upper-triangular. Solve from the bottom row up: <code>x[i] = (rhs - sum of known x[j]*a[i][j]) / a[i][i]</code>.</p>
+          </div></div>
+        </div>
+        <p style="font-size:0.78rem; color:#475569; margin-top:8px;">
+          This function is <code>static</code> — it's invisible outside <code>eigen.c</code> and only exists to serve Inverse Power Iteration. It modifies a copy of B, not the original.
+        </p>
+      </div>
+
+      <div id="gs-code" class="tab-panel">
+        <p style="font-size:0.75rem; color:#475569; margin-bottom:8px;"><code style="color:#fb923c;">eigen.c</code> — <code style="color:#fb923c;">solve_linear_system()</code> (lines 15–76)</p>
+
+        <div class="code-block">
+<div class="code-line"><span class="ln"> 23</span><span><span class="kw">Matrix</span>* <span class="var">aug</span> = <span class="fn">mat_create</span>(<span class="var">n</span>, <span class="var">n</span>+<span class="num">1</span>);</span></div>
+<div class="code-line"><span class="ln"> 27</span><span>  <span class="var">aug</span>-&gt;<span class="var">data</span>[<span class="var">i</span>][<span class="var">j</span>] = <span class="var">A</span>-&gt;<span class="var">data</span>[<span class="var">i</span>][<span class="var">j</span>];</span></div>
+<div class="code-line"><span class="ln"> 29</span><span>  <span class="var">aug</span>-&gt;<span class="var">data</span>[<span class="var">i</span>][<span class="var">n</span>] = <span class="var">b</span>-&gt;<span class="var">data</span>[<span class="var">i</span>];</span></div>
+<span class="ann">▲ Build [B | q]: an n×(n+1) matrix. The first n columns are B; the last column is the right-hand side q. Performing row operations on both simultaneously keeps the system consistent.</span>
+
+<div class="code-line"><span class="ln"> 35</span><span>  <span class="kw">double</span> <span class="var">maxval</span> = <span class="fn">fabs</span>(<span class="var">aug</span>-&gt;<span class="var">data</span>[<span class="var">col</span>][<span class="var">col</span>]);</span></div>
+<div class="code-line"><span class="ln"> 36</span><span>  <span class="kw">for</span> (<span class="kw">int</span> <span class="var">row</span>=<span class="var">col</span>+<span class="num">1</span>; <span class="var">row</span>&lt;<span class="var">n</span>; <span class="var">row</span>++) { <span class="str">/* find max */</span> }</span></div>
+<div class="code-line"><span class="ln"> 48</span><span>  <span class="kw">if</span> (<span class="var">pivot</span> != <span class="var">col</span>) { <span class="str">/* swap rows */</span> }</span></div>
+<span class="ann">▲ Partial pivoting: scan rows below the current one, find the row with the largest absolute value in this column, and swap it to the top. Prevents dividing by a tiny number, which would amplify rounding errors.</span>
+
+<div class="code-line"><span class="ln"> 56</span><span>  <span class="kw">for</span> (<span class="kw">int</span> <span class="var">row</span>=<span class="var">col</span>+<span class="num">1</span>; <span class="var">row</span>&lt;<span class="var">n</span>; <span class="var">row</span>++) {</span></div>
+<div class="code-line"><span class="ln"> 57</span><span>    <span class="kw">double</span> <span class="var">factor</span> = <span class="var">aug</span>[<span class="var">row</span>][<span class="var">col</span>] / <span class="var">aug</span>[<span class="var">col</span>][<span class="var">col</span>];</span></div>
+<div class="code-line"><span class="ln"> 58</span><span>    <span class="var">aug</span>[<span class="var">row</span>][<span class="var">j</span>] -= <span class="var">factor</span> * <span class="var">aug</span>[<span class="var">col</span>][<span class="var">j</span>];</span></div>
+<span class="ann">▲ Forward elimination: for every row below the pivot, subtract (factor × pivot_row) to zero out this column entry. After this loop the matrix is upper-triangular — a triangle of zeros below the diagonal.</span>
+
+<div class="code-line"><span class="ln"> 67</span><span><span class="kw">for</span> (<span class="kw">int</span> <span class="var">i</span>=<span class="var">n</span>-<span class="num">1</span>; <span class="var">i</span>&gt;=<span class="num">0</span>; <span class="var">i</span>--) {</span></div>
+<div class="code-line"><span class="ln"> 68</span><span>  <span class="kw">double</span> <span class="var">sum</span> = <span class="var">aug</span>[<span class="var">i</span>][<span class="var">n</span>];</span></div>
+<div class="code-line"><span class="ln"> 69</span><span>  <span class="kw">for</span> (<span class="kw">int</span> <span class="var">j</span>=<span class="var">i</span>+<span class="num">1</span>; <span class="var">j</span>&lt;<span class="var">n</span>; <span class="var">j</span>++) <span class="var">sum</span> -= <span class="var">aug</span>[<span class="var">i</span>][<span class="var">j</span>] * <span class="var">x</span>[<span class="var">j</span>];</span></div>
+<div class="code-line"><span class="ln"> 70</span><span>  <span class="var">x</span>[<span class="var">i</span>] = <span class="var">sum</span> / <span class="var">aug</span>[<span class="var">i</span>][<span class="var">i</span>];</span></div>
+<span class="ann">▲ Back substitution: start from the last row (one unknown). Each row up has one more unknown; subtract already-solved values from the right-hand side, then divide by the diagonal to get x[i].</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- end main-grid -->
+
+<script>
+// ──────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────
+let mode = 'power'; // 'power' | 'inverse'
+let q    = [1, 0];
+let lambdaPrev = 0;
+let iterCount  = 0;
+let running    = false;
+let runTimer   = null;
+let lambdaHistory = [];
+let converged  = false;
+
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const chartCv = document.getElementById('chartCanvas');
+const chartCtx= chartCv.getContext('2d');
+
+const W = canvas.width;
+const H = canvas.height;
+const CX = W / 2;
+const CY = H / 2;
+const SCALE = 80; // pixels per unit
+
+// ──────────────────────────────────────────────
+// Matrix helpers
+// ──────────────────────────────────────────────
+function getMatrix() {
+  return [
+    [parseFloat(document.getElementById('a00').value) || 0,
+     parseFloat(document.getElementById('a01').value) || 0],
+    [parseFloat(document.getElementById('a10').value) || 0,
+     parseFloat(document.getElementById('a11').value) || 0]
+  ];
+}
+function getSigma() { return parseFloat(document.getElementById('sigma').value) || 0; }
+
+function matVec(A, v) {
+  return [A[0][0]*v[0] + A[0][1]*v[1],
+          A[1][0]*v[0] + A[1][1]*v[1]];
+}
+function dot(a, b)  { return a[0]*b[0] + a[1]*b[1]; }
+function norm(v)    { return Math.sqrt(v[0]*v[0] + v[1]*v[1]); }
+function normalize(v){ const n = norm(v); return n < 1e-14 ? [0,0] : [v[0]/n, v[1]/n]; }
+
+// Solve 2x2 linear system Ax = b  (Cramer's rule for 2x2)
+function solve2x2(A, b) {
+  const det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+  if (Math.abs(det) < 1e-14) return null;
+  return [
+    (b[0]*A[1][1] - b[1]*A[0][1]) / det,
+    (A[0][0]*b[1] - A[1][0]*b[0]) / det
+  ];
+}
+
+// True eigenvalues for display (2x2 only)
+function trueEigenvalues(A) {
+  const tr  = A[0][0] + A[1][1];
+  const det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+  const disc = tr*tr - 4*det;
+  if (disc < 0) return null; // complex
+  return [(tr + Math.sqrt(disc)) / 2, (tr - Math.sqrt(disc)) / 2];
+}
+
+function trueEigenvector(A, lambda) {
+  // (A - λI)v = 0 → pick non-trivial row
+  const a = A[0][0] - lambda, b = A[0][1];
+  const c = A[1][0],          d = A[1][1] - lambda;
+  let v;
+  if (Math.abs(a) > 1e-10 || Math.abs(b) > 1e-10) {
+    v = [-b, a];
+  } else {
+    v = [-d, c];
+  }
+  return normalize(v);
+}
+
+// ──────────────────────────────────────────────
+// Drawing
+// ──────────────────────────────────────────────
+function toCanvas(x, y) {
+  return [CX + x * SCALE, CY - y * SCALE];
+}
+
+function drawArrow(x1, y1, x2, y2, color, dash, width, label) {
+  const [cx1, cy1] = toCanvas(x1, y1);
+  const [cx2, cy2] = toCanvas(x2, y2);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width || 2.5;
+  ctx.globalAlpha = 0.9;
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  ctx.moveTo(cx1, cy1);
+  ctx.lineTo(cx2, cy2);
+  ctx.stroke();
+
+  // arrowhead
+  const angle = Math.atan2(cy2 - cy1, cx2 - cx1);
+  const hs = 10;
+  ctx.setLineDash([]);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx2, cy2);
+  ctx.lineTo(cx2 - hs*Math.cos(angle-0.4), cy2 - hs*Math.sin(angle-0.4));
+  ctx.lineTo(cx2 - hs*Math.cos(angle+0.4), cy2 - hs*Math.sin(angle+0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  if (label) {
+    ctx.fillStyle = color;
+    ctx.font = 'bold 13px Courier New';
+    ctx.fillText(label, cx2 + 8, cy2 - 6);
+  }
+  ctx.restore();
+}
+
+function drawScene(qVec, zVec, zUnorm) {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#1e2738';
+  ctx.lineWidth = 1;
+  for (let i = -5; i <= 5; i++) {
+    const [x1,y1] = toCanvas(i, -5), [x2,y2] = toCanvas(i, 5);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const [xa,ya] = toCanvas(-5, i), [xb,yb] = toCanvas(5, i);
+    ctx.beginPath(); ctx.moveTo(xa,ya); ctx.lineTo(xb,yb); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, CY); ctx.lineTo(W, CY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(CX, 0); ctx.lineTo(CX, H); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#475569';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('x', W - 16, CY - 8);
+  ctx.fillText('y', CX + 8, 16);
+
+  const A = getMatrix();
+
+  // True eigenvectors (if real)
+  const evals = trueEigenvalues(A);
+  if (evals) {
+    evals.forEach((lam, i) => {
+      const ev = trueEigenvector(A, lam);
+      if (norm(ev) < 1e-10) return;
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      drawArrow(0, 0, ev[0]*3, ev[1]*3, '#34d399', [4,3], 1.5, `λ${i+1}=${lam.toFixed(2)}`);
+      drawArrow(0, 0, -ev[0]*3, -ev[1]*3, '#34d399', [4,3], 1.5);
+      ctx.restore();
+    });
+  }
+
+  // Unit circle (light)
+  ctx.save();
+  ctx.strokeStyle = '#1e2738';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.arc(CX, CY, SCALE, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Aq before normalization (dashed red)
+  if (zUnorm && iterCount > 0) {
+    const displayScale = Math.min(3, 3 / (norm(zUnorm) || 1));
+    drawArrow(0, 0, zUnorm[0]*displayScale, zUnorm[1]*displayScale, '#f87171', [5,3], 2, 'Aq');
+  }
+
+  // Initial vector faded
+  drawArrow(0, 0, 1, 0, '#3b82f6', [3,3], 1.5, 'q₀');
+
+  // Current q (yellow, solid, on unit circle so scale=1 visually ×2 for visibility)
+  drawArrow(0, 0, qVec[0]*2, qVec[1]*2, '#fbbf24', [], 3, 'q');
+}
+
+// ──────────────────────────────────────────────
+// Convergence chart
+// ──────────────────────────────────────────────
+function drawChart() {
+  const cw = chartCv.width, ch = chartCv.height;
+  chartCtx.clearRect(0, 0, cw, ch);
+  chartCtx.fillStyle = '#0d1117';
+  chartCtx.fillRect(0, 0, cw, ch);
+
+  if (lambdaHistory.length < 2) return;
+
+  const vals = lambdaHistory;
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const pad  = 10;
+  const range = maxV - minV || 1;
+
+  chartCtx.strokeStyle = '#2d3748';
+  chartCtx.lineWidth = 1;
+  chartCtx.beginPath();
+  chartCtx.moveTo(pad, ch - pad);
+  chartCtx.lineTo(cw - pad, ch - pad);
+  chartCtx.stroke();
+
+  const color = mode === 'inverse' ? '#c084fc' : '#60a5fa';
+  chartCtx.strokeStyle = color;
+  chartCtx.lineWidth = 2;
+  chartCtx.beginPath();
+  vals.forEach((v, i) => {
+    const x = pad + (i / (vals.length - 1)) * (cw - 2*pad);
+    const y = ch - pad - ((v - minV) / range) * (ch - 2*pad);
+    i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+  });
+  chartCtx.stroke();
+
+  // Labels
+  chartCtx.fillStyle = '#475569';
+  chartCtx.font = '10px Courier New';
+  chartCtx.fillText(maxV.toFixed(3), pad, pad + 10);
+  chartCtx.fillText(minV.toFixed(3), pad, ch - pad - 2);
+}
+
+// ──────────────────────────────────────────────
+// Algorithm step
+// ──────────────────────────────────────────────
+let lastZ = null;
+
+function step() {
+  if (converged) return;
+  const A = getMatrix();
+  const sigma = getSigma();
+  let z, mu, lambdaNew;
+
+  if (mode === 'power') {
+    // z = A * q
+    z = matVec(A, q);
+    // Rayleigh quotient
+    lambdaNew = dot(q, z);
+    // normalize
+    const n = norm(z);
+    if (n < 1e-14) { logMsg('Zero vector! Stopping.', 'ok'); return; }
+    lastZ = [...z];
+    z = z.map(x => x / n);
+
+  } else {
+    // Inverse Power: solve (A - sigma*I) * z = q
+    const B = [[A[0][0]-sigma, A[0][1]], [A[1][0], A[1][1]-sigma]];
+    z = solve2x2(B, q);
+    if (!z) { logMsg('Singular matrix! Try different σ.', 'ok'); return; }
+    // Rayleigh quotient mu = q^T * z
+    mu = dot(q, z);
+    // Recover eigenvalue: lambda = sigma + 1/mu
+    lambdaNew = sigma + 1.0 / mu;
+    // normalize
+    const n = norm(z);
+    if (n < 1e-14) { logMsg('Zero vector! Stopping.', 'ok'); return; }
+    lastZ = [...z];
+    z = z.map(x => x / n);
+  }
+
+  const delta = Math.abs(lambdaNew - lambdaPrev);
+  iterCount++;
+  lambdaHistory.push(lambdaNew);
+
+  q = z;
+  lambdaPrev = lambdaNew;
+
+  // Update UI
+  document.getElementById('statIter').textContent   = iterCount;
+  document.getElementById('statLambda').textContent = lambdaNew.toFixed(8);
+  document.getElementById('statDelta').textContent  = delta.toExponential(3);
+  document.getElementById('statNorm').textContent   = norm(q).toFixed(6);
+
+  if (delta < 1e-10 && iterCount > 1) {
+    converged = true;
+    const s = document.getElementById('statStatus');
+    s.textContent = 'CONVERGED ✓';
+    s.className   = 'stat-value converged';
+    logMsg(`Converged! λ = ${lambdaNew.toFixed(8)}`, 'ok');
+    if (running) toggleRun();
+  } else {
+    const s = document.getElementById('statStatus');
+    s.textContent = 'Running…';
+    s.className   = 'stat-value running';
+  }
+
+  const prefix = mode === 'inverse' ? 'inv' : 'iter';
+  logMsg(`[${iterCount}] λ=${lambdaNew.toFixed(6)}  Δ=${delta.toExponential(2)}  q=[${q[0].toFixed(4)}, ${q[1].toFixed(4)}]`, prefix);
+
+  drawScene(q, q, lastZ);
+  drawChart();
+}
+
+// ──────────────────────────────────────────────
+// Controls
+// ──────────────────────────────────────────────
+function toggleRun() {
+  if (converged) { reset(); return; }
+  running = !running;
+  const btn = document.getElementById('btnRun');
+  if (running) {
+    btn.textContent = '⏸ Pause';
+    btn.style.background = '#92400e';
+    runTimer = setInterval(() => { step(); }, 200);
+  } else {
+    btn.textContent = '▶ Run';
+    btn.style.background = '#065f46';
+    clearInterval(runTimer);
+  }
+}
+
+function reset() {
+  running = false;
+  clearInterval(runTimer);
+  q = [1, 0];
+  lambdaPrev = 0;
+  iterCount  = 0;
+  lambdaHistory = [];
+  converged  = false;
+  lastZ = null;
+  document.getElementById('statIter').textContent   = '0';
+  document.getElementById('statLambda').textContent = '—';
+  document.getElementById('statDelta').textContent  = '—';
+  document.getElementById('statNorm').textContent   = '1.0000';
+  const s = document.getElementById('statStatus');
+  s.textContent = 'Ready';
+  s.className   = 'stat-value';
+  document.getElementById('btnRun').textContent = '▶ Run';
+  document.getElementById('btnRun').style.background = '#065f46';
+  document.getElementById('logBox').innerHTML = '';
+  drawScene([1,0], null, null);
+  drawChart();
+}
+
+function switchMode(m) {
+  mode = m;
+  const badge = document.getElementById('modeBadge');
+  badge.textContent = m === 'power' ? 'power' : 'inverse';
+  badge.className   = `mode-badge ${m}`;
+  reset();
+  logMsg(`Switched to ${m === 'power' ? 'Power Iteration' : 'Inverse Power Iteration'}`, m === 'inverse' ? 'inv' : 'iter');
+}
+
+function switchTab(btn, panelId) {
+  const card = btn.closest('.algo-card');
+  card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  card.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+function logMsg(msg, type) {
+  const box = document.getElementById('logBox');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  const spanClass = type || 'iter';
+  div.innerHTML = `<span class="${spanClass}">${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ──────────────────────────────────────────────
+// Init
+// ──────────────────────────────────────────────
+drawScene([1, 0], null, null);
+drawChart();
+
+// Recalculate chart size on load
+(function resizeChart() {
+  const parent = chartCv.parentElement;
+  chartCv.width  = parent.clientWidth - 32;
+  chartCv.height = 120;
+  drawChart();
+})();
+
+logMsg('Ready — press Step or Run to start.', 'iter');
+</script>
+
+</body>
+</html>
