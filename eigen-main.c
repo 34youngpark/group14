@@ -16,6 +16,21 @@ int main(void) {
     printf("   사용자 입력형 Power / Inverse Power Iteration\n");
     printf("==================================================\n\n");
 
+    /* 0. 사용 안내 (입력 전, 사용자 친화 가이드) */
+    printf("[ 사용 안내 ]\n");
+    printf("이 프로그램은 정방 행렬의 고유값(eigenvalue)과 고유벡터를 구합니다.\n\n");
+    printf("진행 순서:\n");
+    printf("  1) 행렬 크기 N 을 입력합니다.        (예: 2)\n");
+    printf("  2) 행렬 성분을 좌→우, 위→아래 순으로 입력합니다.\n");
+    printf("  3) 사용할 알고리즘을 선택합니다.\n");
+    printf("       - Power Iteration         : 절댓값이 가장 큰 고유값\n");
+    printf("       - Inverse Power Iteration : sigma에 가장 가까운 고유값\n");
+    printf("         (sigma=0 이면 절댓값이 가장 작은 고유값)\n\n");
+    printf("예시) A = [ 4  1 ]   →  지배 고유값 5, 최소 고유값 2\n");
+    printf("          [ 2  3 ]\n");
+    printf("  N=2, 성분: 4 1 2 3, 알고리즘: 1 (Power) 선택 시  λ = 5\n");
+    printf("--------------------------------------------------\n\n");
+
     /* 1. 행렬 크기 입력 */
     printf("행렬의 크기(N x N)에서 N을 입력하세요 (예: 3): ");
     if (scanf("%d", &n) != 1 || n <= 0) {
