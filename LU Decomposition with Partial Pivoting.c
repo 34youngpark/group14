@@ -142,3 +142,83 @@ int lu_decomposition_partial_pivoting(
 
     return 0;
 }
+
+/* test main*/
+
+int main(void)
+{
+    Matrix* A = mat_create(3, 3);
+
+    if (A == NULL) {
+        fprintf(stderr, "Failed to create matrix A.\n");
+        return 1;
+    }
+
+    /*
+        테스트 행렬
+
+        A =
+        [ 2   1   1 ]
+        [ 4  -6   0 ]
+        [ -2  7   2 ]
+    */
+
+    A->data[0][0] = 2.0;
+    A->data[0][1] = 1.0;
+    A->data[0][2] = 1.0;
+
+    A->data[1][0] = 4.0;
+    A->data[1][1] = -6.0;
+    A->data[1][2] = 0.0;
+
+    A->data[2][0] = -2.0;
+    A->data[2][1] = 7.0;
+    A->data[2][2] = 2.0;
+
+    Matrix* L = NULL;
+    Matrix* U = NULL;
+    Matrix* P = NULL;
+
+    if (lu_decomposition_partial_pivoting(A, &L, &U, &P) != 0) {
+        fprintf(stderr, "LU decomposition failed.\n");
+        mat_free(A);
+        return 1;
+    }
+
+    printf("===== Matrix A =====\n");
+    mat_print(A);
+
+    printf("\n===== Matrix P =====\n");
+    mat_print(P);
+
+    printf("\n===== Matrix L =====\n");
+    mat_print(L);
+
+    printf("\n===== Matrix U =====\n");
+    mat_print(U);
+
+    Matrix* PA = mat_multiply(P, A);
+    Matrix* LU = mat_multiply(L, U);
+
+    if (PA != NULL && LU != NULL) {
+
+        printf("\n===== P * A =====\n");
+        mat_print(PA);
+
+        printf("\n===== L * U =====\n");
+        mat_print(LU);
+
+    } else {
+        fprintf(stderr, "Matrix multiplication failed.\n");
+    }
+
+    mat_free(PA);
+    mat_free(LU);
+
+    mat_free(A);
+    mat_free(L);
+    mat_free(U);
+    mat_free(P);
+
+    return 0;
+}
