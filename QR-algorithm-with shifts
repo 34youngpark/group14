@@ -1,34 +1,31 @@
 /*
- * qr.c
- * QR Algorithm with Wilkinson Shifts
- *
- * 담당: 박세영 (조장)
- *
- * [알고리즘 개요]
- * 1. Householder 반사를 이용해 입력 행렬을 상 헤센버그(upper Hessenberg) 형태로 축소
- * 2. QR iteration with Wilkinson shift + Givens rotation으로 수렴
- * 3. 하단 서브대각 원소가 충분히 작아지면 deflation(차수 축소)
- * 4. 실수 eigenvalue를 Vector로 반환
- *
- * [사용법]
- *   #include "matrix.h"
- *   Vector* eigenvalues = qr_algorithm(A, 1000, 1e-10);
- *   // 사용 후 반드시 vec_free(eigenvalues);
- *
- * [주의]
- * - 실수 대칭(symmetric) 행렬에 대해 정확히 동작합니다.
- * - 비대칭 행렬은 complex eigenvalue가 존재할 수 있어 이 구현에서는 지원하지 않습니다.
+ [알고리즘 설명]
+ (1) Householder 반사를 이용해 입력 행렬을 upper Hessenberg 형태로 축소
+ (2) QR iteration with Wilkinson shift + Givens rotation으로 수렴
+ (3) 하단 서브대각 원소가 충분히 작아지면 deflation
+ (4) 실수 eigenvalue를 Vector로 반환
+ 
+ * 실수 대칭 행렬에 대해서 작동하고, 비대칭 행렬은 complex eigenvalue를 가질 수 있어 작동하지 않는다.
+
+ [사용법]
+ #include "matrix.h"
+ Vector* eigenvalues = qr_algorithm(A, 1000, 1e-10);
+ 사용 후 반드시 vec_free(eigenvalues);
+
  */
 
 #include "matrix.h"
 
-/* ============================================================
- * static 유틸리티 함수들 (외부에 노출되지 않음)
- * ============================================================ */
+/*
+========================
+ static 유틸리티 함수들 
+========================
+ */
+
 
 /*
- * Givens rotation 파라미터 계산
- * (a, b) 벡터를 회전시켜 b 성분을 0으로 만드는 (c, s)를 반환
+ Givens rotation 파라미터 계산
+ (a, b) 벡터를 회전시켜 b 성분을 0으로 만드는 (c, s)를 반환
  */
 static void givens_params(double a, double b, double *c, double *s) {
     if (b == 0.0) {
@@ -42,8 +39,8 @@ static void givens_params(double a, double b, double *c, double *s) {
 }
 
 /*
- * 행렬 H에 대해 왼쪽에서 Givens 회전 적용: H = G * H
- * 행 i와 행 i+1에만 영향
+ 행렬 H에 대해 왼쪽에서 Givens 회전 적용: H = G * H
+ 행 i와 행 i+1에만 영향
  */
 static void apply_givens_left(Matrix *H, int i, double c, double s, int col_start, int col_end) {
     for (int j = col_start; j <= col_end; j++) {
@@ -54,8 +51,8 @@ static void apply_givens_left(Matrix *H, int i, double c, double s, int col_star
 }
 
 /*
- * 행렬 H에 대해 오른쪽에서 Givens 회전 적용: H = H * G^T
- * 열 i와 열 i+1에만 영향
+ 행렬 H에 대해 오른쪽에서 Givens 회전 적용: H = H * G^T
+ 열 i와 열 i+1에만 영향
  */
 static void apply_givens_right(Matrix *H, int i, double c, double s, int row_start, int row_end) {
     for (int k = row_start; k <= row_end; k++) {
@@ -66,10 +63,9 @@ static void apply_givens_right(Matrix *H, int i, double c, double s, int row_sta
 }
 
 /*
- * Householder 반사를 이용한 상 헤센버그(upper Hessenberg) 변환
- * A를 제자리(in-place)로 수정
- *
- * 대칭 행렬의 경우 결과는 트리다이어고널(tridiagonal)이 됩니다.
+ Householder 반사를 이용한 상 헤센버그(upper Hessenberg) 변환
+ A를 제자리(in-place)로 수정
+ 대칭 행렬의 경우 결과는 tridiagonal)이 된다.
  */
 static void reduce_to_hessenberg(Matrix *A) {
     int n = A->rows;
@@ -107,8 +103,8 @@ static void reduce_to_hessenberg(Matrix *A) {
         }
 
         /*
-         * A = H * A * H^T  (H = I - 2*v*v^T)
-         * 왼쪽 적용: A[k+1:, k:] -= 2 * v * (v^T * A[k+1:, k:])
+         A = H * A * H^T  (H = I - 2*v*v^T)
+         왼쪽 적용: A[k+1:, k:] -= 2 * v * (v^T * A[k+1:, k:])
          */
         for (int j = k; j < n; j++) {
             double dot = 0.0;
@@ -121,7 +117,7 @@ static void reduce_to_hessenberg(Matrix *A) {
         }
 
         /*
-         * 오른쪽 적용: A[:, k+1:] -= 2 * (A[:, k+1:] * v) * v^T
+         오른쪽 적용: A[:, k+1:] -= 2 * (A[:, k+1:] * v) * v^T
          */
         for (int i = 0; i < n; i++) {
             double dot = 0.0;
@@ -139,9 +135,8 @@ static void reduce_to_hessenberg(Matrix *A) {
 }
 
 /*
- * Wilkinson shift 계산
- * 수렴을 가속하기 위해 현재 활성 부분 행렬의 오른쪽 하단 2x2 블록의
- * eigenvalue 중 H[m][m]에 가장 가까운 값을 shift로 선택
+ Wilkinson shift 계산
+ -수렴을 가속하기 위해 현재 활성 부분 행렬의 오른쪽 하단 2x2 블록의 eigenvalue 중 H[m][m]에 가장 가까운 값을 shift로 선택
  */
 static double wilkinson_shift(const Matrix *H, int m) {
     double a = H->data[m-1][m-1];
@@ -171,22 +166,22 @@ static double wilkinson_shift(const Matrix *H, int m) {
     }
 }
 
-/* ============================================================
- * 공개 인터페이스
- * ============================================================ */
+/*
+================
+ 공개 인터페이스
+================
+*/
 
 /*
- * qr_algorithm
- *
  * 매개변수:
- *   A         : 정방 실수 행렬 (내부적으로 복사하므로 원본 훼손 없음)
- *   max_iter  : 최대 반복 횟수 (권장: 1000 이상)
- *   tol       : 수렴 판정 허용 오차 (권장: 1e-10)
- *
+    A         : 정방 실수 행렬 (내부적으로 복사하므로 원본 훼손 없음)
+    max_iter  : 최대 반복 횟수 (권장: 1000 이상)
+    tol       : 수렴 판정 허용 오차 (권장: 1e-10)
+ 
  * 반환:
- *   eigenvalue들을 담은 Vector (크기 n)
- *   메모리 해제는 호출자가 vec_free()로 수행
- *   오류 시 NULL 반환
+    eigenvalue들을 담은 Vector (크기 n)
+    메모리 해제는 호출자가 vec_free()로 수행
+    오류 시 NULL 반환
  */
 Vector* qr_algorithm(const Matrix *A, int max_iter, double tol) {
     if (A == NULL || A->rows != A->cols) {
@@ -228,9 +223,8 @@ Vector* qr_algorithm(const Matrix *A, int max_iter, double tol) {
         double shift = wilkinson_shift(H, m);
 
         /* Shifted QR step via Givens rotations (implicit Q)
-         *
-         * H <- Q^T * (H - shift*I) * Q + shift*I
-         * Givens rotation으로 벌지(bulge)를 아래로 chase
+         H <- Q^T * (H - shift*I) * Q + shift*I
+         Givens rotation으로 벌지(bulge)를 아래로 chase
          */
 
         /* 첫 번째 Givens rotation: (H - shift*I)의 첫 열 [0,1] 성분을 이용 */
