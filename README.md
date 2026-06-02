@@ -1,18 +1,16 @@
-# README 편집하지 마세요
-
 # 고급프로그래밍 14조: C언어 기반 선형대수 솔버 프로젝트
 
 **[필독: 프로젝트 기본 규칙]**
-* 각자의 코드(`linear.c`, `nonlinear.c` 등) 간에 어떠한 함수 호출이나 의존성도 없어야 합니다. 오직 본인에게 할당된 알고리즘 로직에만 집중합니다.
-* **공용 파일 수정 금지: `matrix.c` 및 `matrix.h` 파일은 절대 건드리지 않습니다.**
+* 각자의 코드(`linear.c`, `nonlinear.c` 등) 간에 함수 호출하지 않는것을 원칙으로 합니다.
+* **공용 파일 수정 금지: `matrix.c` 및 `matrix.h`**
 
 ## 팀원 및 담당 주제
-* **최지훈**: LU Decomposition with Partial Pivoting
+* **최지훈**: LU Decomposition with Partial Pivoting (완료/2026.06.02 확인)
 * **전혜빈**: Conjugate Gradient Method
-* **이항석**: Multiderivative(Multivariate) Newton-Raphson
+* **이항석**: Multiderivative(Multivariate) Newton-Raphson (완료/2026.06.02 확인)
 * **김민교**: Broyden's Method
-* **안의빈**: Power Iteration, Inverse Power Iteration
-* **박세영 (조장)**: QR Algorithm with Shifts
+* **안의빈**: Power Iteration, Inverse Power Iteration 
+* **박세영 (조장)**: QR Algorithm with Shifts (완료/ 2026.06.02 확인)
 
 ---
 
