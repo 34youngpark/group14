@@ -1,17 +1,17 @@
 #include "matrix.h"
 
 /* =========================================
- * 내부 상수
+   내부 상수
  * ========================================= */
 #define MAX_ITER  10000
 #define TOLERANCE 1e-10
 
 /* =========================================
- * static 내부 헬퍼: 부분 피벗 가우스 소거법
- *
- * (A - sigma*I) * z = q 형태의 선형계를 풀기 위해
- * inverse_power_iteration 내부에서만 사용됩니다.
- * ========================================= */
+   static 내부 헬퍼: partial pivoting 가우스 소거법
+
+   * (A - sigma*I) * z = q 형태의 선형계를 풀기 위해
+     inverse_power_iteration 내부에서만 사용.
+  ========================================= */
 static Vector* solve_linear_system(const Matrix* A, const Vector* b) {
     int n = A->rows;
     if (A->cols != n || b->size != n) {
@@ -29,7 +29,7 @@ static Vector* solve_linear_system(const Matrix* A, const Vector* b) {
         aug->data[i][n] = b->data[i];
     }
 
-    /* 전진 소거 (부분 피벗) */
+    /* 전진 소거 (partial pivoting) */
     for (int col = 0; col < n; col++) {
         int pivot = col;
         double maxval = fabs(aug->data[col][col]);
@@ -77,19 +77,19 @@ static Vector* solve_linear_system(const Matrix* A, const Vector* b) {
 
 /* =========================================
  * Power Iteration (거듭제곱 반복법)
- *
- * 행렬 A의 지배 고유값(절댓값 최대)과
- * 대응하는 고유벡터를 계산합니다.
- *
- * 매개변수:
- *   A          - 입력 정방 행렬 (n x n)
- *   max_iter   - 최대 반복 횟수 (0이면 기본값 사용)
- *   tol        - 수렴 허용 오차  (0.0이면 기본값 사용)
- *   eigenvalue - 출력: 지배 고유값
- *   iters_done - 출력: 수행된 반복 횟수 (NULL 가능)
- *
- * 반환값: 고유벡터 (호출자가 vec_free로 해제), 오류 시 NULL
- * ========================================= */
+ 
+    행렬 A의 지배 고유값(절댓값 최대)과
+    대응하는 고유벡터를 계산.
+ 
+   Parameter:
+      A          - 입력 정방 행렬 (n x n)
+      max_iter   - 최대 반복 횟수 (0이면 기본값 사용)
+      tol        - 수렴 허용 오차  (0.0이면 기본값 사용)
+      eigenvalue - 출력: 지배 고유값
+      iters_done - 출력: 수행된 반복 횟수 (NULL 가능)
+
+    ∴ output: 고유벡터 (호출자가 vec_free로 해제), 오류 시 NULL
+ ========================================= */
 Vector* power_iteration(const Matrix* A, int max_iter, double tol,
                         double* eigenvalue, int* iters_done) {
     if (!A || A->rows != A->cols) {
@@ -151,20 +151,19 @@ Vector* power_iteration(const Matrix* A, int max_iter, double tol,
 
 /* =========================================
  * Inverse Power Iteration (역반복법)
- *
- * shift sigma에 가장 가까운 고유값과 대응하는
- * 고유벡터를 계산합니다.
- * sigma = 0.0 으로 설정하면 절댓값 최소 고유값을 구합니다.
- *
- * 매개변수:
- *   A          - 입력 정방 행렬 (n x n)
- *   sigma      - shift 값 (최솟값 탐색 시 0.0)
- *   max_iter   - 최대 반복 횟수 (0이면 기본값 사용)
- *   tol        - 수렴 허용 오차  (0.0이면 기본값 사용)
- *   eigenvalue - 출력: sigma에 가장 가까운 고유값
- *   iters_done - 출력: 수행된 반복 횟수 (NULL 가능)
- *
- * 반환값: 고유벡터 (호출자가 vec_free로 해제), 오류 시 NULL
+ 
+    shift sigma에 가장 가까운 고유값과 대응하는 고유벡터를 계산.
+    sigma = 0.0 으로 설정하면 절댓값 최소 고유값을 구합니다.
+ 
+   Parameters:
+     A          - 입력 정방 행렬 (n x n)
+     sigma      - shift 값 (최솟값 탐색 시 0.0)
+     max_iter   - 최대 반복 횟수 (0이면 기본값 사용)
+     tol        - 수렴 허용 오차  (0.0이면 기본값 사용)
+     eigenvalue - 출력: sigma에 가장 가까운 고유값
+     iters_done - 출력: 수행된 반복 횟수 (NULL 가능)
+ 
+  ∴ output : 고유벡터 (호출자가 vec_free로 해제), 오류 시 NULL
  * ========================================= */
 Vector* inverse_power_iteration(const Matrix* A, double sigma,
                                 int max_iter, double tol,

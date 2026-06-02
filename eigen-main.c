@@ -13,7 +13,7 @@ int main(void) {
     int n;
 
     printf("==================================================\n");
-    printf("   사용자 입력형 Power / Inverse Power Iteration\n");
+    printf(" Power / Inverse Power Iteration\n");
     printf("==================================================\n\n");
 
     /* 0. 사용 안내 (입력 전, 사용자 친화 가이드) */
