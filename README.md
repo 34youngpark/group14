@@ -6,7 +6,7 @@
 
 ## 팀원 및 담당 주제
 * **최지훈**: LU Decomposition with Partial Pivoting (완료/2026.06.02 확인)
-* **전혜빈**: Conjugate Gradient Method
+* **이혜빈**: Conjugate Gradient Method
 * **이항석**: Multiderivative(Multivariate) Newton-Raphson (완료/2026.06.02 확인)
 * **김민교**: Broyden's Method
 * **안의빈**: Power Iteration, Inverse Power Iteration 
