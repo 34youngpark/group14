@@ -19,7 +19,7 @@ static Vector* solve_linear_system(const Matrix* A, const Vector* b) {
         return NULL;
     }
 
-    /* 확대 행렬 [A | b] 구성 */
+    // 확대 행렬 [A | b] 구성
     Matrix* aug = mat_create(n, n + 1);
     if (!aug) return NULL;
 
@@ -29,17 +29,18 @@ static Vector* solve_linear_system(const Matrix* A, const Vector* b) {
         aug->data[i][n] = b->data[i];
     }
 
-    /* 전진 소거 (partial pivoting) */
+    // 전진 소거 (partial pivoting)
     for (int col = 0; col < n; col++) {
         int pivot = col;
         double maxval = fabs(aug->data[col][col]);
-        for (int row = col + 1; row < n; row++) {
+        for (int row = col + 1; row < n; row++) {    // max pivot 탐색
             if (fabs(aug->data[row][col]) > maxval) {
                 maxval = fabs(aug->data[row][col]);
                 pivot = row;
             }
         }
-        if (maxval < 1e-14) {
+        if (maxval < 1e-14) {           //특이 행렬
+            /* pivot 행과 col 행의 교환 후, 아래 행 소거*/
             fprintf(stderr, "[solve_linear_system] 오류: 특이 행렬(singular matrix)\n");
             mat_free(aug);
             return NULL;
@@ -60,7 +61,7 @@ static Vector* solve_linear_system(const Matrix* A, const Vector* b) {
         }
     }
 
-    /* 후진 대입 */
+    // 후진 대입
     Vector* x = vec_create(n);
     if (!x) { mat_free(aug); return NULL; }
 
@@ -105,7 +106,7 @@ Vector* power_iteration(const Matrix* A, int max_iter, double tol,
     if (max_iter <= 0) max_iter = MAX_ITER;
     if (tol <= 0.0)    tol      = TOLERANCE;
 
-    /* 초기 벡터: [1, 0, ..., 0] */
+    // 초기 벡터: [1, 0, ..., 0]
     Vector* q = vec_create(n);
     if (!q) return NULL;
     q->data[0] = 1.0;
@@ -114,14 +115,11 @@ Vector* power_iteration(const Matrix* A, int max_iter, double tol,
     int iter = 0;
 
     for (iter = 0; iter < max_iter; iter++) {
-        /* z = A * q */
-        Vector* z = mat_vec_multiply(A, q);
-        if (!z) { vec_free(q); return NULL; }
-
-        /* Rayleigh Quotient: lambda = q^T * A * q */
+        Vector* z = mat_vec_multiply(A, q);      // z = A * q
+        if (!z) { vec_free(q); return NULL; }   // Rayleigh Quotient: lambda = q^T * A * q
         double lambda_new = vec_dot_product(q, z);
 
-        /* 정규화: q = z / ||z|| */
+        // 정규화: q = z / ||z||
         double norm = vec_norm(z);
         if (norm < 1e-14) {
             fprintf(stderr, "[power_iteration] 경고: 영벡터 발생 (불변 부분공간?)\n");
@@ -135,7 +133,7 @@ Vector* power_iteration(const Matrix* A, int max_iter, double tol,
         vec_free(q);
         q = z;
 
-        /* 수렴 판정 */
+        // 수렴 판정
         if (fabs(lambda_new - lambda) < tol) {
             lambda = lambda_new;
             iter++;
@@ -181,7 +179,7 @@ Vector* inverse_power_iteration(const Matrix* A, double sigma,
     if (max_iter <= 0) max_iter = MAX_ITER;
     if (tol <= 0.0)    tol      = TOLERANCE;
 
-    /* B = A - sigma * I (shift 적용) */
+    // B = A - sigma * I (shift 적용)
     Matrix* I = mat_identity(n);
     if (!I) return NULL;
 
@@ -190,10 +188,10 @@ Vector* inverse_power_iteration(const Matrix* A, double sigma,
 
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
-            B->data[i][j] = A->data[i][j] - sigma * I->data[i][j];
+            B->data[i][j] = A->data[i][j] - sigma * I->data[i][j]; // B = A - sigma * I
     mat_free(I);
 
-    /* 초기 벡터: [1, 0, ..., 0] */
+    // 초기 벡터: [1, 0, ..., 0]
     Vector* q = vec_create(n);
     if (!q) { mat_free(B); return NULL; }
     q->data[0] = 1.0;
@@ -202,14 +200,13 @@ Vector* inverse_power_iteration(const Matrix* A, double sigma,
     int iter = 0;
 
     for (iter = 0; iter < max_iter; iter++) {
-        /* (A - sigma*I) * z = q 를 가우스 소거법으로 풀기 */
+        // (A - sigma*I) * z = q 를 가우스 소거법으로 풀기
         Vector* z = solve_linear_system(B, q);
         if (!z) { vec_free(q); mat_free(B); return NULL; }
-
-        /* Rayleigh Quotient: mu = q^T * z */
-        double mu = vec_dot_product(q, z);
-
-        /* 정규화: q = z / ||z|| */
+        // Rayleigh Quotient: mu = q^T * z
+        double mu = vec_dot_product(q, z);    // 정규화: q = z / ||z||
+        
+        
         double norm = vec_norm(z);
         if (norm < 1e-14) {
             fprintf(stderr, "[inverse_power_iteration] 경고: 영벡터 발생\n");
@@ -224,9 +221,8 @@ Vector* inverse_power_iteration(const Matrix* A, double sigma,
         vec_free(q);
         q = z;
 
-        /* A의 고유값 복원: lambda = sigma + 1/mu */
-        double lambda_new = sigma + 1.0 / mu;
-
+        
+        double lambda_new = sigma + 1.0 / mu;   // A의 고유값 복원: lambda = sigma + 1/mu
         /* 수렴 판정 */
         if (fabs(lambda_new - lambda) < tol) {
             lambda = lambda_new;
