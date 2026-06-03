@@ -3,7 +3,7 @@
 #include "matrix.h" 
 #define MAXITER 100 
 #define TOLERANCE 1e-6 
-#define H1e-6 
+#define H 1e-6 
 /* ========================= Nonlinear Function F(x) ========================= */ static Vector* function_F(const Vector* x) 
 { if (x == NULL || x->size != 2) 
 return NULL; 
@@ -33,4 +33,198 @@ return NULL;
 
 for (int j = 0; j < n; j++) 
 { 
-Vector* xh = vec_create(n); for (int i = 0; i < n; i++) xh->data[i] = x->data[i]; xh->data[j] += H; Vector* fxh = function_F(xh); for (int i = 0; i < n; i++) { J->data[i][j] = (fxh->data[i] - fx->data[i]) / H; } vec_free(xh); vec_free(fxh); } vec_free(fx); return J; } /* ========================= Vector Subtraction ========================= */ static Vector* vec_subtract( const Vector* a, const Vector* b) { Vector* r = vec_create(a->size); for (int i = 0; i < a->size; i++) r->data[i] = a->data[i] - b->data[i]; return r; } /* ========================= Vector Addition ========================= */ static Vector* vec_addition( const Vector* a, const Vector* b) { Vector* r = vec_create(a->size); for (int i = 0; i < a->size; i++) r->data[i] = a->data[i] + b->data[i]; return r; } /* ========================= Scalar Multiply ========================= */ static Vector* vec_scalar_mul( const Vector* v, double c) { Vector* r = vec_create(v->size); for (int i = 0; i < v->size; i++) r->data[i] = c * v->data[i]; return r; } /* ========================= Gaussian Elimination ========================= */ static Vector* solve_linear_system( Matrix* A, Vector* b) { int n = A->rows; Vector* x = vec_create(n); for (int k = 0; k < n - 1; k++) { int pivot = k; for (int i = k + 1; i < n; i++) { if (fabs(A->data[i][k]) > fabs(A->data[pivot][k])) { pivot = i; } } if (pivot != k) { mat_swap_rows(A, k, pivot); double temp = b->data[k]; b->data[k] = b->data[pivot]; b->data[pivot] = temp; } for (int i = k + 1; i < n; i++) { double factor = A->data[i][k] / A->data[k][k]; for (int j = k; j < n; j++) { A->data[i][j] -= factor * A->data[k][j]; } b->data[i] -= factor * b->data[k]; } } for (int i = n - 1; i >= 0; i--) { double sum = b->data[i]; for (int j = i + 1; j < n; j++) { sum -= A->data[i][j] * x->data[j]; } x->data[i] = sum / A->data[i][i]; } return x; } /* ========================= Good Broyden Method ========================= */ void broyden_method(Vector* x) { int n = x->size; Matrix* B = compute_jacobian(x); if (B == NULL) return; for (int iter = 0; iter < MAXITER; iter++) { Vector* Fx = function_F(x); printf("Iteration %d\n", iter); vec_print(x); if (vec_norm(Fx) < TOLERANCE) { printf("Converged!\n"); vec_free(Fx); mat_free(B); return; } Vector* minusF = vec_scalar_mul(Fx, -1.0); Matrix* Bcopy = mat_copy(B); Vector* rhs = vec_create(n); for (int i = 0; i < n; i++) rhs->data[i] = minusF->data[i]; Vector* s = solve_linear_system( Bcopy, rhs); Vector* x_new = vec_addition(x, s); Vector* Fx_new = function_F(x_new); Vector* y = vec_subtract(Fx_new, Fx); Vector* Bs = mat_vec_multiply(B, s); Vector* y_minus_Bs = vec_subtract(y, Bs); double denom = vec_dot_product(s, s); if (fabs(denom) > 1e-12) { Matrix* update = vec_outer_product( y_minus_Bs, s); for (int i = 0; i < n; i++) { for (int j = 0; j < n; j++) { B->data[i][j] += update->data[i][j] / denom; } } mat_free(update); } for (int i = 0; i < n; i++) x->data[i] = x_new->data[i]; vec_free(Fx); vec_free(minusF); vec_free(rhs); vec_free(s); vec_free(x_new); vec_free(Fx_new); vec_free(y); vec_free(Bs); vec_free(y_minus_Bs); mat_free(Bcopy); } mat_free(B); printf("Did not converge.\n"); }
+Vector* xh = vec_create(n);
+for (int i = 0; i < n; i++) 
+xh->data[i] = x->data[i];
+xh->data[j] += H; 
+Vector* fxh = function_F(xh);
+for (int i = 0; i < n; i++) 
+{
+J->data[i][j] = (fxh->data[i] - fx->data[i]) / H;
+}
+vec_free(xh);
+vec_free(fxh);
+}
+vec_free(fx); 
+
+return J;
+}
+/* ========================= Vector Subtraction ========================= */ 
+static Vector* vec_subtract( 
+const Vector* a, const Vector* b) 
+{
+Vector* r = vec_create(a->size);
+
+for (int i = 0; i < a->size; i++)
+r->data[i] = a->data[i] - b->data[i];
+
+return r; 
+} 
+
+/* ========================= Vector Addition ========================= */ 
+static Vector* vec_addition( 
+const Vector* a,
+const Vector* b)
+{
+Vector* r = vec_create(a->size);
+for (int i = 0; i < a->size; i++)
+r->data[i] = a->data[i] + b->data[i];
+return r; 
+} 
+/* ========================= Scalar Multiply ========================= */
+static Vector* vec_scalar_mul(
+const Vector* v, 
+double c)
+{
+Vector* r = vec_create(v->size);
+for (int i = 0; i < v->size; i++)
+r->data[i] = c * v->data[i];
+return r; 
+}
+/* ========================= Gaussian Elimination ========================= */
+static Vector* solve_linear_system(
+Matrix* A, Vector* b) 
+{
+int n = A->rows;
+Vector* x = vec_create(n);
+for (int k = 0; k < n - 1; k++)
+{ 
+int pivot = k;
+for (int i = k + 1; i < n; i++)
+{
+if (fabs(A->data[i][k]) >
+fabs(A->data[pivot][k]))
+{
+pivot = i;
+}
+}
+if (pivot != k) 
+{
+mat_swap_rows(A, k, pivot); 
+double temp = b->data[k];
+b->data[k] = b->data[pivot];
+b->data[pivot] = temp;
+}
+for (int i = k + 1; i < n; i++)
+{
+double factor =
+A->data[i][k] / A->data[k][k]; 
+for (int j = k; j < n; j++)
+{
+A->data[i][j] -= factor * A->data[k][j];
+}
+
+b->data[i] -=
+factor * b->data[k];
+}
+}
+for (int i = n - 1; i >= 0; i--)
+{
+double sum = b->data[i]; 
+
+for (int j = i + 1; j < n; j++)
+{
+sum -= A->data[i][j] * x->data[j];
+}
+x->data[i] = sum / A->data[i][i];
+}
+return x; 
+} 
+/* ========================= Good Broyden Method ========================= */ 
+void broyden_method(Vector* x)
+{ 
+int n = x->size; 
+Matrix* B = compute_jacobian(x);
+if (B == NULL) 
+return;
+for (int iter = 0; iter < MAXITER; iter++) 
+{
+Vector* Fx = function_F(x);
+printf("Iteration %d\n", iter);
+vec_print(x); 
+if (vec_norm(Fx) < TOLERANCE) 
+{
+printf("Converged!\n");
+vec_free(Fx);
+mat_free(B); 
+return;
+}
+Vector* minusF = 
+vec_scalar_mul(Fx, -1.0);
+Matrix* Bcopy = 
+mat_copy(B); 
+Vector* rhs =
+vec_create(n);
+for (int i = 0; i < n; i++) 
+rhs->data[i] = minusF->data[i]; 
+Vector* s = 
+solve_linear_system( 
+Bcopy,
+rhs);
+Vector* x_new = 
+vec_addition(x, s);
+Vector* Fx_new =
+function_F(x_new);
+Vector* y = 
+vec_subtract(Fx_new, Fx);
+Vector* Bs = 
+mat_vec_multiply(B, s);
+Vector* y_minus_Bs = 
+vec_subtract(y, Bs); 
+double denom = 
+vec_dot_product(s, s); 
+if (fabs(denom) > 1e-12)
+{
+Matrix* update = 
+vec_outer_product( 
+y_minus_Bs,
+s);
+for (int i = 0; i < n; i++) 
+{
+for (int j = 0; j < n; j++)
+{
+B->data[i][j] += 
+update->data[i][j] 
+/ denom;
+}
+}
+mat_free(update); 
+}
+for (int i = 0; i < n; i++) 
+x->data[i] = x_new->data[i]; 
+vec_free(Fx); 
+vec_free(minusF);
+vec_free(rhs); 
+vec_free(s);
+vec_free(x_new);
+vec_free(Fx_new); 
+vec_free(y); 
+vec_free(Bs); 
+vec_free(y_minus_Bs);
+mat_free(Bcopy);
+}
+mat_free(B);
+printf("Did not converge.\n"); 
+}
+int main(void)
+{
+    Vector* x = vec_create(2);
+
+    if (x == NULL)
+    {
+        printf("Memory allocation failed.\n");
+        return 1;
+    }
+
+    scanf("%lf %lf",
+          &x->data[0],
+          &x->data[1]);
+
+    broyden_method(x);
+
+    vec_print(x);
+
+    vec_free(x);
+
+    return 0;
+}
