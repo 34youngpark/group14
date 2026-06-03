@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "matrix.h"
+#include "Newton-Raphson.h"
 
 #define MAX_ITER 100
 #define TOLERANCE 1e-6
@@ -354,36 +355,4 @@ void multivariable_newton(Vector* x)
     }
 
     printf("Did not converge.\n");
-}
-
-/*
-    Main Function
-*/
-
-int main()
-{
-    /*
-        Initial Guess:
-            x0 = (1,1)
-    */
-
-    Vector* x = vec_create(2);
-
-    if (x == NULL)
-    {
-        return 1;
-    }
-
-    x->data[0] = 1.0;
-    x->data[1] = 1.0;
-
-    multivariable_newton(x);
-
-    printf("\nFinal Solution:\n");
-
-    vec_print(x);
-
-    vec_free(x);
-
-    return 0;
 }
